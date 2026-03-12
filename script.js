@@ -1,654 +1,1119 @@
-/* ─────────────────────────────────────────
-   GSAP Registration
-───────────────────────────────────────── */
-gsap.registerPlugin(ScrollTrigger);
+/* ──────────────────────────────────────────
+   RESET + ROOT
+─────────────────────────────────────────── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    cursor: none;
+}
 
-/* ─────────────────────────────────────────
+:root {
+    --black:      #050505;
+    --dark-red:   #1a1208;    /* Iron Man dark warm charcoal */
+    --red-vivid:  #e8a020;   /* Iron Man gold accent        */
+    --white:      #f4f4ef;
+    --light-gray: #e5e5e0;
+    --mid-gray:   #888;
+    --font:       'Inter', sans-serif;
+}
+
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+    font-family: var(--font);
+    background: var(--white);
+    color: var(--black);
+    overflow-x: hidden;
+}
+
+.section   { position: relative; overflow: hidden; }
+.dark-section { background: var(--black); color: var(--white); }
+.container { width: 90%; max-width: 1400px; margin: 0 auto; }
+
+/* ──────────────────────────────────────────
    CUSTOM CURSOR
-───────────────────────────────────────── */
-const cursor   = document.getElementById('cursor');
-const follower = document.getElementById('cursor-follower');
-let mouseX = 0, mouseY = 0;
-let followerX = 0, followerY = 0;
-
-document.addEventListener('mousemove', e => {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-    gsap.to(cursor, { x: mouseX, y: mouseY, duration: 0.08 });
-});
-
-// Smooth follower
-(function animateFollower() {
-    followerX += (mouseX - followerX) * 0.1;
-    followerY += (mouseY - followerY) * 0.1;
-    gsap.set(follower, { x: followerX, y: followerY });
-    requestAnimationFrame(animateFollower);
-})();
-
-/* ─────────────────────────────────────────
-   LOADER  0% → 100%
-───────────────────────────────────────── */
-const loaderEl   = document.getElementById('loader');
-const loaderNum  = document.getElementById('loader-num');
-const loaderFill = document.getElementById('loader-fill');
-
-const bootMessages = [
-    "Initializing secure kernel…",
-    "Decrypting payloads…",
-    "Loading threat models…",
-    "Bypassing firewalls…",
-    "Mapping attack surface…",
-    "Boot sequence complete."
-];
-
-let progress  = 0;
-let msgIndex  = 0;
-const loaderInterval = setInterval(() => {
-    progress += Math.random() * 14;
-    if (progress >= 100) {
-        progress = 100;
-        clearInterval(loaderInterval);
-
-        // Brief pause then dismiss loader
-        setTimeout(() => {
-            loaderEl.classList.add('out');
-            setTimeout(() => loaderEl.remove(), 700);
-
-            // Animate hero elements in after loader disappears
-            gsap.from('.hero-name', { y: 60, opacity: 0, duration: 1.2, ease: 'power4.out', delay: 0.2 });
-            gsap.from('.badge', { y: 40, opacity: 0, duration: 1, ease: 'power3.out', delay: 0.4 });
-            gsap.from('.hero-portrait-wrap', { scale: 0.9, opacity: 0, duration: 1.4, ease: 'power3.out', delay: 0.1 });
-
-            // Refresh ScrollTrigger after DOM settles
-            setTimeout(() => ScrollTrigger.refresh(), 500);
-        }, 400);
-    }
-
-    loaderNum.textContent  = Math.floor(progress);
-    loaderFill.style.width = progress + '%';
-
-    // Cycle boot messages
-    const msgStep = Math.floor(progress / (100 / bootMessages.length));
-    if (msgStep > msgIndex && msgIndex < bootMessages.length) {
-        msgIndex = msgStep;
-    }
-}, 110);
-
-/* ─────────────────────────────────────────
-   HAMBURGER / NAV OVERLAY
-───────────────────────────────────────── */
-const hamburger  = document.getElementById('hamburger');
-const navOverlay = document.getElementById('nav-overlay');
-const navLinks   = document.querySelectorAll('.nav-link-item');
-
-hamburger.addEventListener('click', () => {
-    const isOpen = navOverlay.classList.toggle('open');
-    hamburger.classList.toggle('active', isOpen);
-    hamburger.setAttribute('aria-expanded', isOpen);
-    navOverlay.setAttribute('aria-hidden', !isOpen);
-});
-
-navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-        navOverlay.classList.remove('open');
-        hamburger.classList.remove('active');
-    });
-});
-
-/* ─────────────────────────────────────────
-   SPIDER-MAN MASK REVEAL  (clip-path circle)
-───────────────────────────────────────── */
-const portraitWrap = document.getElementById('portrait-wrap');
-const maskLayer    = document.getElementById('mask-layer');
-
-if (portraitWrap && maskLayer) {
-    portraitWrap.addEventListener('mousemove', e => {
-        const { left, top } = portraitWrap.getBoundingClientRect();
-        const x = e.clientX - left;
-        const y = e.clientY - top;
-
-        // Iron Man gold tint: warm amber-gold overlay
-        const radius = 130;
-        gsap.to(maskLayer, {
-            clipPath: `circle(${radius}px at ${x}px ${y}px)`,
-            duration: 0.55,
-            ease: 'power3.out'
-        });
-    });
-
-    portraitWrap.addEventListener('mouseleave', () => {
-        gsap.to(maskLayer, {
-            clipPath: 'circle(0px at 50% 50%)',
-            duration: 0.9,
-            ease: 'power3.out'
-        });
-    });
+─────────────────────────────────────────── */
+#cursor {
+    position: fixed; top: 0; left: 0; z-index: 9999;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red-vivid);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    transition: width .15s, height .15s, background .15s;
+}
+#cursor-follower {
+    position: fixed; top: 0; left: 0; z-index: 9998;
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1.5px solid rgba(204,0,0,.5);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+}
+body:has(a:hover, button:hover) #cursor {
+    width: 20px; height: 20px;
+    background: var(--black); mix-blend-mode: difference;
 }
 
-/* ─────────────────────────────────────────
-   FLOATING KEYWORD PARALLAX (scroll-based)
-───────────────────────────────────────── */
-const floaters = document.querySelectorAll('.float-cloud span');
-floaters.forEach((el, i) => {
-    const depth = (i % 3) + 1;
-    gsap.to(el, {
-        y: `-=${depth * 80}`,
-        ease: 'none',
-        scrollTrigger: {
-            trigger: '.intro-section',
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: depth * 0.8
-        }
-    });
-});
+/* ──────────────────────────────────────────
+   LOADER
+─────────────────────────────────────────── */
+#loader {
+    position: fixed; inset: 0; z-index: 10000;
+    background: var(--black);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    transition: opacity .6s ease;
+}
+#loader.out { opacity: 0; pointer-events: none; }
 
-/* ─────────────────────────────────────────
-   SCROLL REVEAL  (data-reveal via GSAP)
-───────────────────────────────────────── */
-gsap.utils.toArray('[data-reveal]').forEach((el, i) => {
-    gsap.fromTo(el,
-        { opacity: 0, y: 60 },
-        {
-            opacity: 1, y: 0,
-            duration: 1,
-            delay: (i % 3) * 0.15,
-            ease: 'power3.out',
-            scrollTrigger: {
-                trigger: el,
-                start: 'top 88%',
-                toggleActions: 'play none none none'
-            }
-        }
+.loader-inner { text-align: center; }
+.loader-label {
+    font-size: .85rem; letter-spacing: .4em; color: #444; margin-bottom: 8px;
+}
+.loader-num {
+    font-size: clamp(5rem, 14vw, 14rem); font-weight: 900;
+    line-height: 1; color: #fff; letter-spacing: -.03em;
+}
+.loader-track {
+    width: min(340px, 80vw); height: 2px; background: #222; margin-top: 24px;
+}
+.loader-fill {
+    height: 100%; width: 0%; background: #fff;
+    transition: width .08s linear;
+}
+
+/* ──────────────────────────────────────────
+   NAV OVERLAY
+─────────────────────────────────────────── */
+#nav-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: var(--black);
+    clip-path: circle(0% at calc(100% - 52px) 52px);
+    transition: clip-path .8s cubic-bezier(.77,0,.175,1);
+    display: flex; flex-direction: column;
+    align-items: flex-start; justify-content: center;
+    padding: 0 8%;
+}
+#nav-overlay.open {
+    clip-path: circle(160% at calc(100% - 52px) 52px);
+}
+
+.nav-big-links { list-style: none; }
+.nav-big-links li { overflow: hidden; }
+.nav-link-item {
+    display: block;
+    font-size: clamp(3rem, 8vw, 7rem);
+    font-weight: 900; color: var(--white);
+    text-decoration: none; line-height: 1.05;
+    letter-spacing: -.03em;
+    transition: color .25s, transform .3s;
+    transform: translateY(0);
+}
+.nav-link-item:hover { color: var(--red-vivid); transform: translateX(16px); }
+
+.nav-footer-info {
+    margin-top: 5vh;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.nav-footer-info a {
+    color: #666; text-decoration: none; font-size: 1rem;
+    transition: color .2s;
+}
+.nav-footer-info a:hover { color: var(--white); }
+.nav-socials { display: flex; gap: 1.5rem; margin-top: 12px; }
+
+/* ──────────────────────────────────────────
+   HEADER
+─────────────────────────────────────────── */
+#site-header {
+    position: fixed; top: 0; left: 0; width: 100%;
+    padding: 24px 5%;
+    display: flex; justify-content: space-between; align-items: center;
+    z-index: 600;
+    mix-blend-mode: difference; color: #fff;
+}
+.header-logo {
+    font-weight: 900; font-size: 1.4rem; letter-spacing: -.04em;
+    color: inherit;
+}
+
+.hamburger {
+    width: 44px; height: 34px;
+    background: none; border: none; color: inherit;
+    display: flex; flex-direction: column;
+    align-items: flex-end; justify-content: space-between;
+    z-index: 700;
+}
+.hamburger span {
+    display: block; height: 2px; background: currentColor;
+    transition: transform .35s, opacity .25s, width .25s;
+}
+.hamburger span:nth-child(1) { width: 100%; }
+.hamburger span:nth-child(2) { width: 66%; }
+.hamburger span:nth-child(3) { width: 100%; }
+.hamburger.active span:nth-child(1) { transform: translateY(16px) rotate(45deg); width: 100%; }
+.hamburger.active span:nth-child(2) { opacity: 0; }
+.hamburger.active span:nth-child(3) { transform: translateY(-16px) rotate(-45deg); }
+
+/* ──────────────────────────────────────────
+   HERO SECTION
+─────────────────────────────────────────── */
+.hero-section {
+    height: 100vh; min-height: 600px;
+    background: radial-gradient(ellipse 80% 90% at 60% 40%, #3d2200 0%, #1a1208 60%, #050505 100%);
+    display: flex; align-items: center; justify-content: center;
+}
+
+.hero-watermark {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: space-evenly;
+    overflow: hidden; pointer-events: none; user-select: none;
+}
+.hero-watermark p {
+    font-size: clamp(3rem, 10vw, 10rem);
+    font-weight: 900; color: rgba(255,255,255,.05);
+    white-space: nowrap; letter-spacing: .02em;
+}
+.hero-watermark p:nth-child(even) { transform: translateX(-8%); }
+
+/* Portrait frame */
+.hero-portrait-wrap {
+    position: relative;
+    width: min(420px, 70vw);
+    height: min(560px, 80vh);
+    z-index: 5;
+}
+.portrait-base {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top center;
+    filter: grayscale(100%) contrast(115%);
+    transition: filter .6s;
+}
+.hero-portrait-wrap:hover .portrait-base { filter: grayscale(0%); }
+
+/* Mask reveal layer */
+.portrait-mask-layer {
+    position: absolute; inset: 0;
+    clip-path: circle(0px at 50% 50%);
+    pointer-events: none;
+}
+.portrait-mask-img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top center;
+    filter: sepia(1) saturate(4) hue-rotate(330deg) contrast(1.3);
+}
+
+/* Scan line sweep */
+.scanline {
+    position: absolute; top: 0; left: 0; width: 100%; height: 6px;
+    background: linear-gradient(to bottom, rgba(232,160,32,0), rgba(232,160,32,.7), rgba(232,160,32,0));
+    animation: scan 4s linear infinite;
+    pointer-events: none;
+}
+@keyframes scan { from { top: -4%; } to { top: 104%; } }
+
+/* Hero bottom name strip */
+.hero-bottom-bar {
+    position: absolute; bottom: 28px; left: 5%; right: 5%;
+    display: flex; flex-direction: column; gap: 4px; z-index: 6;
+}
+.badge {
+    display: inline-block; font-size: .7rem; letter-spacing: .25em;
+    color: rgba(255,255,255,.6);
+}
+.hero-name {
+    font-size: clamp(2.5rem, 6vw, 5.5rem);
+    font-weight: 900; color: #fff;
+    letter-spacing: -.03em; line-height: 1;
+}
+
+/* ──────────────────────────────────────────
+   INTRO SECTION
+─────────────────────────────────────────── */
+.intro-section {
+    background: var(--white); padding: 14vh 0 16vh;
+    isolation: isolate;
+}
+
+.float-cloud {
+    position: absolute; inset: 0; pointer-events: none; z-index: 0;
+}
+.float-cloud span {
+    position: absolute;
+    font-size: clamp(2.5rem, 6vw, 7rem);
+    font-weight: 900; color: rgba(0,0,0,.04);
+    white-space: nowrap; will-change: transform;
+    /* base translate set via CSS vars */
+    translate: var(--tx) var(--ty);
+    rotate: var(--r);
+}
+/* Scattered positions */
+.float-cloud span:nth-child(1) { top: 5%;  left: 2%; }
+.float-cloud span:nth-child(2) { top: 10%; right: 3%; }
+.float-cloud span:nth-child(3) { top: 50%; left: 0%; }
+.float-cloud span:nth-child(4) { top: 5%;  right: 20%; }
+.float-cloud span:nth-child(5) { top: 65%; right: 5%; }
+.float-cloud span:nth-child(6) { top: 40%; left: 5%; }
+
+.intro-inner { position: relative; z-index: 1; }
+.eyebrow {
+    font-size: .9rem; font-weight: 700; letter-spacing: .22em;
+    color: var(--mid-gray); margin-bottom: 2rem; text-transform: uppercase;
+}
+.intro-name {
+    font-size: clamp(5rem, 14vw, 16rem);
+    font-weight: 900; line-height: .85; letter-spacing: -.04em;
+    border-bottom: 3px solid var(--black); padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+}
+.intro-sub {
+    font-size: clamp(1rem, 1.8vw, 1.6rem);
+    font-weight: 300; line-height: 1.5; color: #444;
+    text-transform: uppercase; letter-spacing: .06em;
+}
+
+/* ──────────────────────────────────────────
+   SERVICES SECTION
+─────────────────────────────────────────── */
+.services-section { padding: 10vh 0 12vh; }
+.section-title {
+    font-size: clamp(2.5rem, 6vw, 6rem);
+    font-weight: 900; letter-spacing: -.03em;
+    border-bottom: 1px solid #333;
+    padding-bottom: 1.5rem; margin-bottom: 0;
+}
+
+.service-list { list-style: none; }
+.service-item {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 20px; align-items: center;
+    padding: 2.5rem 0;
+    border-bottom: 1px solid #1a1a1a;
+    transition: background .25s;
+}
+.service-item:hover { background: rgba(255,255,255,.02); }
+.service-num { font-size: .8rem; color: var(--red-vivid); letter-spacing: .15em; }
+.service-body h3 {
+    font-size: clamp(1.5rem, 3vw, 2.8rem);
+    font-weight: 900; margin-bottom: 6px; letter-spacing: -.02em;
+}
+.service-body p { font-size: .95rem; color: #666; font-weight: 300; }
+.service-item:hover .service-body h3 { color: var(--red-vivid); }
+.service-arrow {
+    font-size: 1.5rem; color: #444;
+    transition: transform .25s, color .25s;
+}
+.service-item:hover .service-arrow { transform: translate(5px,-5px); color: var(--red-vivid); }
+
+/* ──────────────────────────────────────────
+   ABOUT SECTION
+─────────────────────────────────────────── */
+.about-section { background: var(--white); padding: 12vh 0; }
+
+.about-grid {
+    display: grid; grid-template-columns: 1fr 1.2fr;
+    gap: 80px; align-items: center;
+}
+.about-photo-frame {
+    position: relative; aspect-ratio: 4/5; overflow: hidden;
+}
+.about-photo-frame::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(to top right, rgba(100,0,0,.3), transparent);
+}
+.about-photo-frame img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top;
+    filter: grayscale(80%);
+    transition: filter .6s, transform .5s;
+}
+.about-photo-frame:hover img { filter: grayscale(0%); transform: scale(1.03); }
+
+.about-heading {
+    font-size: clamp(2.5rem, 4.5vw, 5rem);
+    font-weight: 900; line-height: 1.0; letter-spacing: -.03em; margin-bottom: 2rem;
+}
+.about-text-col p {
+    font-size: 1.1rem; color: #444; line-height: 1.75; margin-bottom: 1.2rem;
+}
+.about-text-col strong { color: var(--black); }
+.about-tags {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2.5rem;
+}
+.about-tags span {
+    padding: 6px 14px; border: 1px solid #ccc;
+    font-size: .8rem; letter-spacing: .1em; font-weight: 700;
+    text-transform: uppercase; color: #555;
+}
+
+/* ──────────────────────────────────────────
+   WORK / PROJECTS SECTION
+─────────────────────────────────────────── */
+.work-section { background: var(--white); padding: 10vh 0 14vh; }
+.work-section .section-title { color: var(--black); border-color: #ddd; }
+
+.project-list { list-style: none; }
+.project-row {
+    display: flex; flex-direction: column;
+    padding: 3rem 0;
+    border-bottom: 1.5px solid #e0e0e0;
+    transition: background .25s; position: relative;
+}
+.project-row:first-child { border-top: 1.5px solid #e0e0e0; }
+
+.project-row-inner {
+    display: flex; align-items: baseline; gap: 1.5rem;
+    margin-bottom: 12px;
+}
+.project-num { font-size: .85rem; color: var(--red-vivid); letter-spacing: .15em; }
+.project-title {
+    font-size: clamp(2.5rem, 6vw, 7rem);
+    font-weight: 900; letter-spacing: -.03em; line-height: 1;
+    transition: color .25s;
+}
+.project-row:hover .project-title { color: var(--red-vivid); }
+
+.project-meta {
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+}
+.project-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.project-tags span {
+    padding: 4px 10px; border: 1px solid #ccc;
+    font-size: .75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .08em; color: #666;
+}
+.project-type { font-size: .75rem; letter-spacing: .15em; color: #aaa; margin-left: auto; }
+
+/* Floating image preview */
+#project-img-preview {
+    position: fixed; width: 380px; height: 250px;
+    border-radius: 6px; background-size: cover; background-position: center;
+    pointer-events: none; z-index: 200;
+    opacity: 0; transform: scale(.88);
+    transition: opacity .35s, transform .35s;
+    box-shadow: 0 30px 70px rgba(0,0,0,.25);
+    top: 0; left: 0; will-change: transform;
+}
+#project-img-preview.shown { opacity: 1; transform: scale(1); }
+
+/* ──────────────────────────────────────────
+   TICKER MARQUEE
+─────────────────────────────────────────── */
+.ticker-wrap {
+    overflow: hidden;
+    border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a;
+    padding: 18px 0;
+}
+.ticker-track {
+    display: inline-flex; gap: 0;
+    animation: ticker 22s linear infinite;
+    white-space: nowrap;
+}
+.ticker-word {
+    font-size: clamp(1.8rem, 4vw, 3.5rem); font-weight: 900;
+    letter-spacing: .12em; padding: 0 2rem;
+}
+.ticker-sep { font-size: 1.5rem; color: var(--red-vivid); padding: 0 .5rem; align-self: center; }
+@keyframes ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+}
+
+/* ──────────────────────────────────────────
+   FOOTER / CONTACT
+─────────────────────────────────────────── */
+.footer-section { padding: 13vh 0 6vh; }
+
+.footer-cta-quote {
+    font-size: clamp(1.6rem, 3.5vw, 3.5rem);
+    font-weight: 300; line-height: 1.3; color: #555;
+    max-width: 900px; margin: 0 auto 10vh;
+    text-align: center;
+}
+.footer-big-title {
+    font-size: clamp(4rem, 13vw, 14rem);
+    font-weight: 900; letter-spacing: -.04em; line-height: .85;
+    margin-bottom: 4rem; text-align: center;
+}
+.footer-links {
+    display: flex; flex-direction: column; gap: 1rem; align-items: center;
+    margin-bottom: 2.5rem;
+}
+.footer-contact-link {
+    font-size: clamp(1.2rem, 2.5vw, 2.5rem);
+    font-weight: 700; color: var(--white); text-decoration: none;
+    border-bottom: 2px solid transparent; transition: border-color .25s;
+}
+.footer-contact-link:hover { border-color: var(--red-vivid); }
+
+.footer-socials {
+    display: flex; gap: 2.5rem; justify-content: center;
+    margin-bottom: 8vh;
+}
+.footer-socials a {
+    color: #555; text-decoration: none; font-size: 1.1rem;
+    font-weight: 700; letter-spacing: .1em; transition: color .25s;
+}
+.footer-socials a:hover { color: var(--white); }
+
+.footer-tagline {
+    text-align: center; font-size: .85rem;
+    font-weight: 900; letter-spacing: .5em; color: #333;
+    border-top: 1px solid #1a1a1a; padding-top: 2rem;
+}
+
+/* SCROLL REVEAL — GSAP handles animation, just set initial invisible state */
+[data-reveal] {
+    opacity: 0;
+    transform: translateY(50px);
+    will-change: opacity, transform;
+}
+
+/* ──────────────────────────────────────────
+   RESPONSIVE
+─────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .about-grid { grid-template-columns: 1fr; }
+    .service-item { grid-template-columns: 40px 1fr auto; }
+    #project-img-preview { display: none; }
+}
+@media (max-width: 600px) {
+    .intro-name { font-size: clamp(4rem, 20vw, 8rem); }
+    .hero-name  { font-size: clamp(2rem, 8vw, 4rem); }
+    .footer-big-title { font-size: clamp(3rem, 16vw, 8rem); }
+}
+
+/* ══════════════════════════════════════════
+   ██  HACKER EXTRAS  ██
+══════════════════════════════════════════ */
+
+/* ── CRT SCANLINE OVERLAY (full page) ── */
+.crt-overlay {
+    position: fixed; inset: 0; z-index: 8000;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.04) 0px,
+        rgba(0, 0, 0, 0.04) 1px,
+        transparent 1px,
+        transparent 4px
     );
-});
-
-/* ─────────────────────────────────────────
-   PROJECT HOVER IMAGE PREVIEW
-───────────────────────────────────────── */
-const projectRows    = document.querySelectorAll('.project-row');
-const imgPreview     = document.getElementById('project-img-preview');
-let previewRAF;
-
-projectRows.forEach(row => {
-    const imgUrl = row.getAttribute('data-img');
-
-    row.addEventListener('mouseenter', () => {
-        if (!imgUrl) return;
-        imgPreview.style.backgroundImage = `url(${imgUrl})`;
-        imgPreview.classList.add('shown');
-    });
-
-    row.addEventListener('mouseleave', () => {
-        imgPreview.classList.remove('shown');
-    });
-
-    row.addEventListener('mousemove', e => {
-        cancelAnimationFrame(previewRAF);
-        previewRAF = requestAnimationFrame(() => {
-            gsap.to(imgPreview, {
-                x: e.clientX + 30,
-                y: e.clientY - 125,
-                duration: 0.6,
-                ease: 'power2.out'
-            });
-        });
-    });
-});
-
-/* ─────────────────────────────────────────
-   GSAP HERO TEXT  (glitch flicker on load)
-───────────────────────────────────────── */
-function glitchHero() {
-    const heroName = document.querySelector('.hero-name');
-    if (!heroName) return;
-    const tl = gsap.timeline({ repeat: -1, repeatDelay: 4 });
-    tl.to(heroName, { x: -4, duration: 0.05, ease: 'steps(1)' })
-      .to(heroName, { x: 4, duration: 0.05, ease: 'steps(1)' })
-      .to(heroName, { x: 0, duration: 0.05, ease: 'steps(1)' })
-      .to(heroName, { x: -2, duration: 0.03, ease: 'steps(1)', delay: 0.1 })
-      .to(heroName, { x: 0, duration: 0.03, ease: 'steps(1)' });
+    animation: crt-flicker 8s infinite;
 }
-setTimeout(glitchHero, 3000);
-
-/* ═════════════════════════════════════════
-   ██  HACKER EXTRAS JS  ██
-═════════════════════════════════════════ */
-
-/* ── LIVE CLOCK in hero corner ── */
-const heroClock = document.getElementById('hero-clock');
-function updateClock() {
-    if (!heroClock) return;
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2,'0');
-    const mm = String(now.getMinutes()).padStart(2,'0');
-    const ss = String(now.getSeconds()).padStart(2,'0');
-    heroClock.textContent = `${hh}:${mm}:${ss}`;
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-/* ── LIVE HEX TICKER in header ── */
-const hexTickerEl = document.getElementById('hex-ticker');
-const hexMessages = [
-    'SYS_OK', 'CONN_SECURE', 'THREAT::NONE', 'AUTH_OK',
-    'SCAN_ACTIVE', 'FW_ENABLED', 'PKT_SNIFF::OFF', 'ZERO_TRUST::ON'
-];
-let hexMsgIdx = 0;
-function updateHexTicker() {
-    if (!hexTickerEl) return;
-    const hex = '0x' + Math.floor(Math.random() * 0xFFFF).toString(16).toUpperCase().padStart(4,'0');
-    hexTickerEl.textContent = `${hex} :: ${hexMessages[hexMsgIdx % hexMessages.length]}`;
-    hexMsgIdx++;
-}
-setInterval(updateHexTicker, 2000);
-
-/* ── BOOT LOG during loader ── */
-const bootLog = document.getElementById('loader-boot-log');
-const loaderHex = document.getElementById('loader-hex');
-const hackerBootLines = [
-    { text: '> AUTH MODULE LOADED', cls: 'ok' },
-    { text: '> KERNEL v2.5.1 INITIALIZED', cls: 'ok' },
-    { text: '> LOADING THREAT DATABASE...', cls: '' },
-    { text: '> CVE SCAN: 0 CRITICAL', cls: 'ok' },
-    { text: '> FIREWALL ENABLED', cls: 'ok' },
-    { text: '> DECRYPTING PAYLOAD...', cls: '' },
-    { text: '> ZERO-TRUST: ACTIVE', cls: 'ok' },
-    { text: '> ALL SYSTEMS NOMINAL', cls: 'ok' },
-];
-let bootLineIdx = 0;
-const bootLogInterval = setInterval(() => {
-    if (!bootLog || bootLineIdx >= hackerBootLines.length) {
-        clearInterval(bootLogInterval);
-        return;
-    }
-    const line = hackerBootLines[bootLineIdx];
-    const span = document.createElement('span');
-    span.textContent = line.text;
-    if (line.cls) span.classList.add(line.cls);
-    bootLog.appendChild(span);
-    bootLineIdx++;
-
-    // Also update hex display
-    if (loaderHex) {
-        loaderHex.textContent = '0x' + Math.floor(Math.random() * 0xFFFF)
-            .toString(16).toUpperCase().padStart(4,'0');
-    }
-}, 600);
-
-/* ── RANDOM GLITCH BAR that flickers across screen ── */
-const glitchBar = document.getElementById('glitch-bar');
-function triggerGlitchBar() {
-    if (!glitchBar) return;
-    const y = Math.random() * window.innerHeight;
-    glitchBar.style.top = y + 'px';
-    glitchBar.style.opacity = '1';
-    glitchBar.style.height = (Math.random() * 4 + 1) + 'px';
-    setTimeout(() => {
-        glitchBar.style.opacity = '0';
-    }, 80 + Math.random() * 80);
-}
-setInterval(triggerGlitchBar, 3000 + Math.random() * 5000);
-// Random extra flash
-setInterval(() => {
-    if (Math.random() > 0.6) triggerGlitchBar();
-}, 7000);
-
-/* ── BINARY STRIP — randomize content periodically ── */
-const binaryStripEl = document.getElementById('binary-strip');
-function randomByte() {
-    return Math.floor(Math.random() * 256).toString(2).padStart(8, '0');
-}
-function refreshBinaryStrip() {
-    if (!binaryStripEl) return;
-    const bytes = Array.from({ length: 20 }, randomByte).join(' ');
-    binaryStripEl.textContent = bytes;
-}
-setInterval(refreshBinaryStrip, 3000);
-
-/* ═══════════════════════════════════════════
-   ██  SPLINE 3D — SPOTLIGHT + LOADER  ██
-════════════════════════════════════════════ */
-
-/* Mouse-following spotlight inside the Spline card */
-const splineCard      = document.getElementById('spline-card');
-const splineSpotlight = document.getElementById('spline-spotlight');
-
-if (splineCard && splineSpotlight) {
-    splineCard.addEventListener('mousemove', e => {
-        const { left, top } = splineCard.getBoundingClientRect();
-        const x = e.clientX - left;
-        const y = e.clientY - top;
-        splineSpotlight.style.left = x + 'px';
-        splineSpotlight.style.top  = y + 'px';
-    });
+@keyframes crt-flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96%           { opacity: 0.85; }
+    97%           { opacity: 1; }
+    98%           { opacity: 0.9; }
 }
 
-/* Hide the spinner once the spline-viewer fires its 'load' event */
-const splineViewer = document.getElementById('spline-viewer');
-const splineLoader = document.getElementById('spline-loader');
-
-if (splineViewer && splineLoader) {
-    splineViewer.addEventListener('load', () => {
-        splineLoader.classList.add('hidden');
-        // Remove after fade-out so it doesn't intercept pointer events
-        setTimeout(() => splineLoader.remove(), 600);
-    });
-
-    // Fallback: hide loader after 12 seconds even if 'load' doesn't fire
-    setTimeout(() => {
-        if (splineLoader && splineLoader.parentNode) {
-            splineLoader.classList.add('hidden');
-        }
-    }, 12000);
+/* ── GLOBAL GLITCH BAR ── */
+.glitch-bar {
+    position: fixed; left: 0; z-index: 7999;
+    width: 100%; height: 3px;
+    background: var(--red-vivid);
+    opacity: 0;
+    pointer-events: none;
+    mix-blend-mode: screen;
 }
 
-/* ═══════════════════════════════════════════
-   ██  SHADER LINES — Three.js  ██
-════════════════════════════════════════════ */
-(function initShader() {
-    const container = document.getElementById('shader-canvas');
-    if (!container) return;
+/* ── ENHANCED LOADER HEX ── */
+.loader-hex {
+    font-size: 1rem; letter-spacing: .3em; color: var(--red-vivid);
+    margin-bottom: 8px; font-family: 'Courier New', monospace;
+}
+.loader-boot-log {
+    margin-top: 20px; text-align: left;
+    font-size: .78rem; color: #444;
+    font-family: 'Courier New', monospace;
+    height: 5rem; overflow: hidden;
+    border-left: 2px solid #222; padding-left: 1rem;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    gap: 4px;
+}
+.loader-boot-log span { color: #5a5a5a; }
+.loader-boot-log span.ok  { color: var(--red-vivid); }
+.loader-boot-log span.err { color: #ff4444; }
 
-    // Load Three.js r89 from CDN (matches the original React component)
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/89/three.min.js';
-    script.onload = () => startShader(container);
-    document.head.appendChild(script);
+/* ── HEADER HEX STATUS BAR ── */
+.header-status {
+    display: flex; align-items: center; gap: 8px;
+    font-size: .72rem; letter-spacing: .2em;
+    font-family: 'Courier New', monospace;
+    color: rgba(255,255,255,.4);
+}
+.status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red-vivid);
+    animation: pulse-dot 1.4s ease-in-out infinite;
+    box-shadow: 0 0 6px var(--red-vivid);
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .4; transform: scale(.7); }
+}
 
-    function startShader(container) {
-        if (!window.THREE) return;
-        const THREE = window.THREE;
+/* ── CYBER CORNERS on HERO ── */
+.cyber-corner {
+    position: absolute; z-index: 10;
+    font-size: .68rem; letter-spacing: .15em;
+    font-family: 'Courier New', monospace;
+    color: rgba(232,160,32,.5);
+    padding: 6px 10px;
+}
+.cyber-corner span { display: block; }
+.cyber-corner.tl { top: 80px;  left: 20px;  border-top: 1px solid rgba(232,160,32,.25); border-left: 1px solid rgba(232,160,32,.25); }
+.cyber-corner.tr { top: 80px;  right: 20px; border-top: 1px solid rgba(232,160,32,.25); border-right: 1px solid rgba(232,160,32,.25); text-align: right; }
+.cyber-corner.bl { bottom: 80px; left: 20px;  border-bottom: 1px solid rgba(232,160,32,.25); border-left: 1px solid rgba(232,160,32,.25); }
+.cyber-corner.br { bottom: 80px; right: 20px; border-bottom: 1px solid rgba(232,160,32,.25); border-right: 1px solid rgba(232,160,32,.25); text-align: right; }
 
-        // --- Camera & Scene ---
-        const camera = new THREE.Camera();
-        camera.position.z = 1;
-        const scene  = new THREE.Scene();
+/* ── BINARY DATA STRIP ── */
+.binary-strip {
+    width: 100%;
+    padding: 12px 5%;
+    font-family: 'Courier New', monospace;
+    font-size: .7rem; letter-spacing: .1em;
+    color: var(--red-vivid);
+    background: var(--black);
+    overflow: hidden; white-space: nowrap;
+    border-top: 1px solid #111; border-bottom: 1px solid #111;
+    opacity: .6;
+    animation: binary-scroll 20s linear infinite;
+}
+@keyframes binary-scroll {
+    from { letter-spacing: .1em; }
+    50%  { letter-spacing: .18em; }
+    to   { letter-spacing: .1em; }
+}
 
-        // --- Geometry ---
-        const geometry = new THREE.PlaneBufferGeometry(2, 2);
+/* ── HERO NAME GLITCH EFFECT ── */
+.hero-name {
+    position: relative;
+}
+.hero-name::before,
+.hero-name::after {
+    content: attr(data-text);
+    position: absolute; top: 0; left: 0;
+    width: 100%; color: #fff;
+    background: transparent;
+    clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%);
+}
+.hero-name::before {
+    text-shadow: 3px 0 var(--red-vivid);
+    animation: glitch-top 4s infinite;
+}
+.hero-name::after {
+    clip-path: polygon(0 66%, 100% 66%, 100% 100%, 0 100%);
+    text-shadow: -3px 0 #00d4ff;
+    animation: glitch-bot 4.5s infinite;
+}
+@keyframes glitch-top {
+    0%, 90%, 100% { transform: translateX(0); opacity: 0; }
+    92%           { transform: translateX(-3px); opacity: 1; }
+    94%           { transform: translateX(3px);  opacity: 1; }
+    96%           { transform: translateX(-1px); opacity: 0; }
+}
+@keyframes glitch-bot {
+    0%, 85%, 100% { transform: translateX(0); opacity: 0; }
+    87%           { transform: translateX(3px);  opacity: 1; }
+    90%           { transform: translateX(-3px); opacity: 1; }
+    93%           { transform: translateX(0);    opacity: 0; }
+}
 
-        // --- Uniforms ---
-        const uniforms = {
-            time:       { type: 'f',  value: 1.0 },
-            resolution: { type: 'v2', value: new THREE.Vector2() }
-        };
+/* ── NEON GLOW on section titles ── */
+.dark-section .section-title {
+    text-shadow: 0 0 30px rgba(232,160,32,.15);
+    border-bottom-color: rgba(232,160,32,.2);
+}
+.dark-section .section-title:hover {
+    text-shadow: 0 0 50px rgba(232,160,32,.3);
+    transition: text-shadow .4s;
+}
 
-        // --- Vertex Shader ---
-        const vertexShader = `
-            void main() {
-                gl_Position = vec4(position, 1.0);
-            }
-        `;
+/* ── SERVICE ITEM — left accent bar on hover ── */
+.service-item {
+    border-left: 3px solid transparent;
+    padding-left: 16px;
+    transition: border-color .25s, background .25s;
+}
+.service-item:hover {
+    border-left-color: var(--red-vivid);
+}
 
-        // --- Fragment Shader (exact port from React component) ---
-        const fragmentShader = `
-            #define TWO_PI 6.2831853072
-            #define PI 3.14159265359
+/* ── ABOUT PHOTO — cyber scan lines overlay ── */
+.about-photo-frame::before {
+    content: '';
+    position: absolute; inset: 0; z-index: 2;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(232,160,32,0) 0px,
+        rgba(232,160,32,0) 5px,
+        rgba(232,160,32,.04) 5px,
+        rgba(232,160,32,.04) 6px
+    );
+    opacity: 0; transition: opacity .4s;
+}
+.about-photo-frame:hover::before { opacity: 1; }
 
-            precision highp float;
-            uniform vec2  resolution;
-            uniform float time;
+/* ── PROJECT ROW — animated left strip ── */
+.project-row::before {
+    content: attr(data-num, '//');
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    font-size: .65rem; color: var(--red-vivid);
+    font-family: 'Courier New', monospace; letter-spacing: .2em;
+    opacity: 0; transition: opacity .3s;
+}
+.project-row:hover::before { opacity: 1; }
 
-            float random(in float x) {
-                return fract(sin(x) * 1e4);
-            }
-            float random(vec2 st) {
-                return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
-            }
+/* ── FOOTER TAGLINE GLITCH ── */
+.footer-tagline {
+    position: relative;
+}
+.footer-tagline::after {
+    content: 'JUST IMAGINE, I SECURE IT';
+    position: absolute; top: 2rem; left: 50%;
+    transform: translateX(-50%) translateX(2px);
+    color: var(--red-vivid); opacity: 0;
+    font-size: .85rem; letter-spacing: .5em;
+    white-space: nowrap;
+    animation: tag-glitch 6s infinite;
+    pointer-events: none;
+}
+@keyframes tag-glitch {
+    0%, 88%, 100% { opacity: 0; }
+    90%           { opacity: .6; transform: translateX(-50%) translateX(-3px); }
+    92%           { opacity: 0; }
+    94%           { opacity: .4; transform: translateX(-50%) translateX(2px); }
+    96%           { opacity: 0; }
+}
 
-            varying vec2 vUv;
+/* ══════════════════════════════════════════
+   ██  LIQUID GLASS BUTTON  ██
+══════════════════════════════════════════ */
 
-            void main(void) {
-                vec2 uv = (gl_FragCoord.xy * 2.0 - resolution.xy) / min(resolution.x, resolution.y);
+/* Hide the SVG filter element */
+.liquid-svg-defs {
+    position: absolute;
+    width: 0; height: 0;
+    overflow: hidden; pointer-events: none;
+}
 
-                vec2 fMosaicScal  = vec2(4.0, 2.0);
-                vec2 vScreenSize  = vec2(256.0, 256.0);
-                uv.x = floor(uv.x * vScreenSize.x / fMosaicScal.x) / (vScreenSize.x / fMosaicScal.x);
-                uv.y = floor(uv.y * vScreenSize.y / fMosaicScal.y) / (vScreenSize.y / fMosaicScal.y);
+/* CTA row in hero */
+.hero-cta-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
 
-                float t = time * 0.06 + random(uv.x) * 0.4;
-                float lineWidth = 0.0008;
+/* Base liquid button */
+.liquid-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 56px;
+    padding: 0 2.5rem;
+    border-radius: 9999px;         /* pill shape */
+    text-decoration: none;
+    font-size: .95rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    color: #fff;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .3s ease, box-shadow .3s ease;
 
-                vec3 color = vec3(0.0);
-                for (int j = 0; j < 3; j++) {
-                    for (int i = 0; i < 5; i++) {
-                        color[j] += lineWidth * float(i * i) /
-                            abs(fract(t - 0.01 * float(j) + float(i) * 0.01) * 1.0 - length(uv));
-                    }
-                }
+    /* Glass rim shadow — directly ported from LiquidButton's shadow string */
+    box-shadow:
+        0 0 6px  rgba(0,0,0,.03),
+        0 2px 6px rgba(0,0,0,.08),
+        inset  3px  3px 0.5px -3px  rgba(255,255,255,.9),
+        inset -3px -3px 0.5px -3px  rgba(255,255,255,.85),
+        inset  1px  1px 1px -0.5px  rgba(255,255,255,.6),
+        inset -1px -1px 1px -0.5px  rgba(255,255,255,.6),
+        inset  0    0   6px 6px      rgba(255,255,255,.12),
+        inset  0    0   2px 2px      rgba(255,255,255,.06),
+        0 0 12px rgba(255,255,255,.15);
+}
+.liquid-btn:hover {
+    transform: scale(1.05);
+    box-shadow:
+        0 0 12px rgba(232,160,32,.25),
+        0 4px 20px rgba(0,0,0,.15),
+        inset  3px  3px 0.5px -3px  rgba(255,255,255,.9),
+        inset -3px -3px 0.5px -3px  rgba(255,255,255,.85),
+        inset  1px  1px 1px -0.5px  rgba(255,255,255,.6),
+        inset -1px -1px 1px -0.5px  rgba(255,255,255,.6),
+        inset  0    0   6px 6px      rgba(255,255,255,.18),
+        inset  0    0   2px 2px      rgba(255,255,255,.1),
+        0 0 20px rgba(232,160,32,.2);
+}
+.liquid-btn:active {
+    transform: scale(0.97);
+}
 
-                gl_FragColor = vec4(color[2], color[1], color[0], 1.0);
-            }
-        `;
+/* Backdrop glass distortion layer (the __glass span) */
+.liquid-btn__glass {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    /* SVG filter distorts what's behind it */
+    -webkit-backdrop-filter: url("#container-glass") blur(4px);
+    backdrop-filter: url("#container-glass") blur(4px);
+    background: rgba(255,255,255,.08);
+    z-index: 0;
+}
 
-        // --- Material & Mesh ---
-        const material = new THREE.ShaderMaterial({
-            uniforms,
-            vertexShader,
-            fragmentShader
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
+/* Solid variant gets a faint amber tint */
+.liquid-btn:not(.liquid-btn--outline) .liquid-btn__glass {
+    background: rgba(232,160,32,.08);
+}
 
-        // --- Renderer ---
-        const renderer = new THREE.WebGLRenderer({ antialias: false });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        container.appendChild(renderer.domElement);
+/* Outline variant — more transparent, with thin border */
+.liquid-btn--outline {
+    box-shadow:
+        0 0 6px  rgba(0,0,0,.03),
+        0 2px 6px rgba(0,0,0,.08),
+        inset  3px  3px 0.5px -3px  rgba(255,255,255,.5),
+        inset -3px -3px 0.5px -3px  rgba(255,255,255,.5),
+        inset  1px  1px 1px -0.5px  rgba(255,255,255,.35),
+        inset -1px -1px 1px -0.5px  rgba(255,255,255,.35),
+        inset  0    0   6px 6px      rgba(255,255,255,.06),
+        inset  0    0   2px 2px      rgba(255,255,255,.03),
+        0 0 8px rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.18);
+    color: rgba(255,255,255,.8);
+}
+.liquid-btn--outline .liquid-btn__glass {
+    background: rgba(255,255,255,.04);
+}
 
-        // --- Resize handler ---
-        function onResize() {
-            const w = container.clientWidth;
-            const h = container.clientHeight;
-            renderer.setSize(w, h);
-            uniforms.resolution.value.set(renderer.domElement.width, renderer.domElement.height);
-        }
-        onResize();
-        window.addEventListener('resize', onResize, { passive: true });
+/* Label stays on top of the glass layer */
+.liquid-btn__label {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+}
 
-        // --- Animation loop (pause when section is off-screen) ---
-        let rafId = null;
-        let running = false;
+/* ══════════════════════════════════════════
+   ██  INTERACTIVE WAVES SECTION  ██
+══════════════════════════════════════════ */
+.waves-section {
+    position: relative;
+    height: 60vh;
+    min-height: 500px;
+    padding: 0;
+    background: #000;
+    border-top: 1px solid #1a1a1a;
+    border-bottom: 1px solid #1a1a1a;
+    overflow: hidden;
+}
 
-        function animate() {
-            rafId = requestAnimationFrame(animate);
-            uniforms.time.value += 0.05;
-            renderer.render(scene, camera);
-        }
+.waves-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    --x: -0.5rem;
+    --y: 50%;
+}
 
-        // Use IntersectionObserver to save GPU when section is not visible
-        const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting && !running) {
-                running = true;
-                animate();
-            } else if (!entry.isIntersecting && running) {
-                running = false;
-                cancelAnimationFrame(rafId);
-            }
-        }, { rootMargin: '200px' });
+.waves-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* Subtle glow on the lines to fit the hardware aesthetic */
+    filter: drop-shadow(0 0 2px rgba(232,160,32,0.6));
+}
 
-        observer.observe(document.getElementById('shader-section'));
-    }
-})();
+.waves-pointer-dot {
+    position: absolute;
+    top: 0; left: 0;
+    width: 8px; height: 8px;
+    background: var(--red-vivid);
+    border-radius: 50%;
+    transform: translate3d(calc(var(--x) - 50%), calc(var(--y) - 50%), 0);
+    will-change: transform;
+    pointer-events: none;
+    box-shadow: 0 0 10px var(--red-vivid);
+    z-index: 5;
+}
 
-// ════════════════════════════════════════════════════════
-//   WAVES BACKGROUND ANIMATION
-// ════════════════════════════════════════════════════════
-(function initWaves() {
-    const container = document.getElementById('waves-container');
-    const svg = document.getElementById('waves-svg');
-    if (!container || !svg || typeof SimplexNoise === 'undefined') return;
+.waves-overlay-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+    z-index: 10;
+    text-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
 
-    // Use global simplex (from the CDN script, it exposes window.simplexNoise)
-    // The library we loaded exposes window.simplexNoise
-    let noise2D;
-    // Check if it's the 2.x API (SimplexNoise constructor) or 3.x+ API (createNoise2D)
-    if (typeof SimplexNoise === 'function') {
-        const simplexInst = new SimplexNoise();
-        noise2D = (x, y) => simplexInst.noise2D(x, y);
-    } else {
-        // Fallback or generic
-        noise2D = (x, y) => Math.sin(x) * Math.cos(y); // Simple fallback, shouldn't happen with the CDN we used
-    }
+.waves-heading {
+    font-size: clamp(4rem, 12vw, 10rem);
+    font-weight: 900;
+    line-height: .9;
+    letter-spacing: -.04em;
+    color: var(--white);
+    mix-blend-mode: overlay;
+    opacity: 0.8;
+}
 
-    let bounding = container.getBoundingClientRect();
-    let paths = [];
-    let lines = [];
-    let rafId = null;
+/* ══════════════════════════════════════════
+   ██  SHADER LINES SECTION  ██
+══════════════════════════════════════════ */
+.shader-section {
+    position: relative;
+    height: 650px;
+    overflow: hidden;
+    background: #000;
+    border-top: 1px solid #111;
+    border-bottom: 1px solid #111;
+}
 
-    const mouse = {
-        x: -10, y: 0, lx: 0, ly: 0, sx: 0, sy: 0,
-        v: 0, vs: 0, a: 0, set: false,
-    };
+/* Three.js canvas container — fills the section */
+.shader-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.shader-canvas canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
 
-    function setSize() {
-        bounding = container.getBoundingClientRect();
-        svg.style.width = bounding.width + 'px';
-        svg.style.height = bounding.height + 'px';
-    }
+/* Text overlay — centered over the shader */
+.shader-overlay {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    pointer-events: none;
+}
 
-    function setLines() {
-        const width = bounding.width;
-        const height = bounding.height;
-        lines = [];
-        paths.forEach(p => p.remove());
-        paths = [];
+.shader-eyebrow {
+    font-size: .72rem;
+    letter-spacing: .45em;
+    color: rgba(232,160,32,.7);
+    font-family: 'Courier New', monospace;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+}
 
-        const xGap = 8;
-        const yGap = 8;
-        const oWidth = width + 200;
-        const oHeight = height + 30;
+.shader-title {
+    font-size: clamp(5rem, 15vw, 13rem);
+    font-weight: 900;
+    line-height: .88;
+    letter-spacing: -.04em;
+    color: #fff;
+    background: linear-gradient(to bottom, #ffffff 20%, rgba(255,255,255,.15) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    mix-blend-mode: screen;
+}
 
-        const totalLines = Math.ceil(oWidth / xGap);
-        const totalPoints = Math.ceil(oHeight / yGap);
-        const xStart = (width - xGap * totalLines) / 2;
-        const yStart = (height - yGap * totalPoints) / 2;
+.shader-title-sub {
+    display: block;
+    background: linear-gradient(to bottom, var(--red-vivid) 0%, rgba(232,160,32,.3) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
 
-        for (let i = 0; i < totalLines; i++) {
-            const points = [];
-            for (let j = 0; j < totalPoints; j++) {
-                points.push({
-                    x: xStart + xGap * i,
-                    y: yStart + yGap * j,
-                    wave: { x: 0, y: 0 },
-                    cursor: { x: 0, y: 0, vx: 0, vy: 0 }
-                });
-            }
+.shader-tagline {
+    margin-top: 2rem;
+    font-size: clamp(.8rem, 1.5vw, 1.1rem);
+    font-weight: 300;
+    letter-spacing: .3em;
+    color: rgba(255,255,255,.35);
+    text-transform: uppercase;
+}
 
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.classList.add('a__line', 'js-line');
-            path.setAttribute('fill', 'none');
-            // Hardcode bright white lines similar to the component props
-            path.setAttribute('stroke', 'rgba(255, 255, 255, 0.4)');
-            path.setAttribute('stroke-width', '1');
+/* Corner monospace glyphs */
+.shader-corner {
+    position: absolute;
+    font-family: 'Courier New', monospace;
+    font-size: .65rem;
+    letter-spacing: .18em;
+    color: rgba(232,160,32,.3);
+    z-index: 10;
+    padding: 8px 12px;
+}
+.shader-corner--tl {
+    top: 18px; left: 22px;
+    border-top: 1px solid rgba(232,160,32,.15);
+    border-left: 1px solid rgba(232,160,32,.15);
+}
+.shader-corner--br {
+    bottom: 18px; right: 22px;
+    border-bottom: 1px solid rgba(232,160,32,.15);
+    border-right: 1px solid rgba(232,160,32,.15);
+    text-align: right;
+}
 
-            svg.appendChild(path);
-            paths.push(path);
-            lines.push(points);
-        }
-    }
+@media (max-width: 600px) {
+    .shader-section { height: 420px; }
+    .shader-title { letter-spacing: -.05em; }
+}
 
-    function updateMousePosition(x, y) {
-        mouse.x = x - bounding.left;
-        mouse.y = y - bounding.top + window.scrollY;
+/* ══════════════════════════════════════════
+   ██  SPLINE 3D SECTION  ██
+══════════════════════════════════════════ */
+.spline-section {
+    background: var(--white);
+    padding: 8vh 0 10vh;
+}
 
-        if (!mouse.set) {
-            mouse.sx = mouse.x;
-            mouse.sy = mouse.y;
-            mouse.lx = mouse.x;
-            mouse.ly = mouse.y;
-            mouse.set = true;
-        }
+.spline-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #000000;
+    background-image: radial-gradient(ellipse at 30% 40%, #1a1208 0%, #050505 70%);
+    height: 500px;
+    border: 1px solid rgba(232,160,32,.12);
+    box-shadow: 0 40px 100px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
+}
 
-        container.style.setProperty('--x', `${mouse.sx}px`);
-        container.style.setProperty('--y', `${mouse.sy}px`);
-    }
+/* The mouse-follow spotlight */
+.spline-spotlight {
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(232,160,32,.18) 0%, rgba(232,160,32,.06) 40%, transparent 72%);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity .4s ease;
+    z-index: 1;
+    filter: blur(10px);
+}
+.spline-card:hover .spline-spotlight {
+    opacity: 1;
+}
 
-    function movePoints(time) {
-        lines.forEach(points => {
-            points.forEach(p => {
-                const move = noise2D((p.x + time * 0.008) * 0.003, (p.y + time * 0.003) * 0.002) * 8;
-                p.wave.x = Math.cos(move) * 12;
-                p.wave.y = Math.sin(move) * 6;
+/* Also the SVG-style static spotlight sweep at top */
+.spline-card::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: 30%;
+    width: 180%;
+    height: 120%;
+    background: conic-gradient(from 200deg at 60% 0%, transparent 0deg, rgba(232,160,32,.06) 40deg, transparent 80deg);
+    pointer-events: none;
+    z-index: 1;
+    animation: spotlight-sweep 8s ease-in-out infinite alternate;
+}
+@keyframes spotlight-sweep {
+    from { transform: rotate(-5deg) scaleX(.9); }
+    to   { transform: rotate(5deg) scaleX(1.1); }
+}
 
-                const dx = p.x - mouse.sx;
-                const dy = p.y - mouse.sy;
-                const d = Math.hypot(dx, dy);
-                const l = Math.max(175, mouse.vs);
+.spline-inner {
+    position: relative; z-index: 2;
+    display: flex; height: 100%;
+}
 
-                if (d < l) {
-                    const s = 1 - d / l;
-                    const f = Math.cos(d * 0.001) * s;
-                    p.cursor.vx += Math.cos(mouse.a) * f * l * mouse.vs * 0.00035;
-                    p.cursor.vy += Math.sin(mouse.a) * f * l * mouse.vs * 0.00035;
-                }
+/* Left text column */
+.spline-text-col {
+    flex: 1;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 3rem 3rem;
+}
 
-                p.cursor.vx += (0 - p.cursor.x) * 0.01;
-                p.cursor.vy += (0 - p.cursor.y) * 0.01;
-                p.cursor.vx *= 0.95;
-                p.cursor.vy *= 0.95;
-                p.cursor.x += p.cursor.vx;
-                p.cursor.y += p.cursor.vy;
-                p.cursor.x = Math.min(50, Math.max(-50, p.cursor.x));
-                p.cursor.y = Math.min(50, Math.max(-50, p.cursor.y));
-            });
-        });
-    }
+.spline-heading {
+    font-size: clamp(2.8rem, 5vw, 4.5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -.03em;
+    color: #fff;
+    margin-bottom: 1.25rem;
+    background: linear-gradient(to bottom, #f4f4ef 30%, rgba(244,244,239,.4) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.spline-accent {
+    background: linear-gradient(135deg, var(--red-vivid) 0%, #fff5c2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
 
-    function drawLines() {
-        lines.forEach((points, lIndex) => {
-            if (points.length < 2 || !paths[lIndex]) return;
+.spline-desc {
+    font-size: 1rem;
+    color: rgba(244,244,239,.55);
+    line-height: 1.65;
+    font-weight: 300;
+    margin-bottom: 2rem;
+    max-width: 360px;
+}
 
-            const fp = points[0];
-            const fx = fp.x + fp.wave.x;
-            const fy = fp.y + fp.wave.y;
-            let d = `M ${fx} ${fy}`;
+.spline-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: .7rem; letter-spacing: .25em;
+    color: rgba(232,160,32,.8);
+    font-family: 'Courier New', monospace;
+    border: 1px solid rgba(232,160,32,.2);
+    padding: 6px 14px; border-radius: 4px;
+    width: fit-content;
+}
 
-            for (let i = 1; i < points.length; i++) {
-                const p = points[i];
-                const x = p.x + p.wave.x + p.cursor.x;
-                const y = p.y + p.wave.y + p.cursor.y;
-                d += `L ${x} ${y}`;
-            }
-            paths[lIndex].setAttribute('d', d);
-        });
-    }
+/* Right Spline canvas column */
+.spline-canvas-col {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
 
-    function tick(time) {
-        mouse.sx += (mouse.x - mouse.sx) * 0.1;
-        mouse.sy += (mouse.y - mouse.sy) * 0.1;
+spline-viewer {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
 
-        const dx = mouse.x - mouse.lx;
-        const dy = mouse.y - mouse.ly;
-        const d = Math.hypot(dx, dy);
+/* Loading spinner shown until Spline loads */
+.spline-loader {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 3;
+    background: transparent;
+    pointer-events: none;
+    transition: opacity .5s ease;
+}
+.spline-loader.hidden { opacity: 0; }
 
-        mouse.v = d;
-        mouse.vs += (d - mouse.vs) * 0.1;
-        mouse.vs = Math.min(100, mouse.vs);
+/* The spinner used inside the Spline loader */
+.loader {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 3px solid rgba(232,160,32,.15);
+    border-top-color: var(--red-vivid);
+    animation: spin .9s linear infinite;
+    display: block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-        mouse.lx = mouse.x;
-        mouse.ly = mouse.y;
-        mouse.a = Math.atan2(dy, dx);
+/* Responsive: stack columns on mobile */
+@media (max-width: 768px) {
+    .spline-card { height: auto; }
+    .spline-inner { flex-direction: column; }
+    .spline-text-col { padding: 2.5rem 2rem 1.5rem; }
+    .spline-canvas-col { height: 300px; }
+}
 
-        container.style.setProperty('--x', `${mouse.sx}px`);
-        container.style.setProperty('--y', `${mouse.sy}px`);
-
-        movePoints(time);
-        drawLines();
-
-        rafId = requestAnimationFrame(tick);
-    }
-
-    // Init and listeners
-    setSize();
-    setLines();
-
-    window.addEventListener('resize', () => { setSize(); setLines(); });
-    window.addEventListener('mousemove', e => updateMousePosition(e.pageX, e.pageY));
-    container.addEventListener('touchmove', e => {
-        const t = e.touches[0];
-        updateMousePosition(t.clientX, t.clientY);
-    }, { passive: false });
-
-    rafId = requestAnimationFrame(tick);
-})();
