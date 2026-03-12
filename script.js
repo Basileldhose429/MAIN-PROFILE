@@ -306,3 +306,349 @@ function refreshBinaryStrip() {
 }
 setInterval(refreshBinaryStrip, 3000);
 
+/* ═══════════════════════════════════════════
+   ██  SPLINE 3D — SPOTLIGHT + LOADER  ██
+════════════════════════════════════════════ */
+
+/* Mouse-following spotlight inside the Spline card */
+const splineCard      = document.getElementById('spline-card');
+const splineSpotlight = document.getElementById('spline-spotlight');
+
+if (splineCard && splineSpotlight) {
+    splineCard.addEventListener('mousemove', e => {
+        const { left, top } = splineCard.getBoundingClientRect();
+        const x = e.clientX - left;
+        const y = e.clientY - top;
+        splineSpotlight.style.left = x + 'px';
+        splineSpotlight.style.top  = y + 'px';
+    });
+}
+
+/* Hide the spinner once the spline-viewer fires its 'load' event */
+const splineViewer = document.getElementById('spline-viewer');
+const splineLoader = document.getElementById('spline-loader');
+
+if (splineViewer && splineLoader) {
+    splineViewer.addEventListener('load', () => {
+        splineLoader.classList.add('hidden');
+        // Remove after fade-out so it doesn't intercept pointer events
+        setTimeout(() => splineLoader.remove(), 600);
+    });
+
+    // Fallback: hide loader after 12 seconds even if 'load' doesn't fire
+    setTimeout(() => {
+        if (splineLoader && splineLoader.parentNode) {
+            splineLoader.classList.add('hidden');
+        }
+    }, 12000);
+}
+
+/* ═══════════════════════════════════════════
+   ██  SHADER LINES — Three.js  ██
+════════════════════════════════════════════ */
+(function initShader() {
+    const container = document.getElementById('shader-canvas');
+    if (!container) return;
+
+    // Load Three.js r89 from CDN (matches the original React component)
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/89/three.min.js';
+    script.onload = () => startShader(container);
+    document.head.appendChild(script);
+
+    function startShader(container) {
+        if (!window.THREE) return;
+        const THREE = window.THREE;
+
+        // --- Camera & Scene ---
+        const camera = new THREE.Camera();
+        camera.position.z = 1;
+        const scene  = new THREE.Scene();
+
+        // --- Geometry ---
+        const geometry = new THREE.PlaneBufferGeometry(2, 2);
+
+        // --- Uniforms ---
+        const uniforms = {
+            time:       { type: 'f',  value: 1.0 },
+            resolution: { type: 'v2', value: new THREE.Vector2() }
+        };
+
+        // --- Vertex Shader ---
+        const vertexShader = `
+            void main() {
+                gl_Position = vec4(position, 1.0);
+            }
+        `;
+
+        // --- Fragment Shader (exact port from React component) ---
+        const fragmentShader = `
+            #define TWO_PI 6.2831853072
+            #define PI 3.14159265359
+
+            precision highp float;
+            uniform vec2  resolution;
+            uniform float time;
+
+            float random(in float x) {
+                return fract(sin(x) * 1e4);
+            }
+            float random(vec2 st) {
+                return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+            }
+
+            varying vec2 vUv;
+
+            void main(void) {
+                vec2 uv = (gl_FragCoord.xy * 2.0 - resolution.xy) / min(resolution.x, resolution.y);
+
+                vec2 fMosaicScal  = vec2(4.0, 2.0);
+                vec2 vScreenSize  = vec2(256.0, 256.0);
+                uv.x = floor(uv.x * vScreenSize.x / fMosaicScal.x) / (vScreenSize.x / fMosaicScal.x);
+                uv.y = floor(uv.y * vScreenSize.y / fMosaicScal.y) / (vScreenSize.y / fMosaicScal.y);
+
+                float t = time * 0.06 + random(uv.x) * 0.4;
+                float lineWidth = 0.0008;
+
+                vec3 color = vec3(0.0);
+                for (int j = 0; j < 3; j++) {
+                    for (int i = 0; i < 5; i++) {
+                        color[j] += lineWidth * float(i * i) /
+                            abs(fract(t - 0.01 * float(j) + float(i) * 0.01) * 1.0 - length(uv));
+                    }
+                }
+
+                gl_FragColor = vec4(color[2], color[1], color[0], 1.0);
+            }
+        `;
+
+        // --- Material & Mesh ---
+        const material = new THREE.ShaderMaterial({
+            uniforms,
+            vertexShader,
+            fragmentShader
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        // --- Renderer ---
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // --- Resize handler ---
+        function onResize() {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            renderer.setSize(w, h);
+            uniforms.resolution.value.set(renderer.domElement.width, renderer.domElement.height);
+        }
+        onResize();
+        window.addEventListener('resize', onResize, { passive: true });
+
+        // --- Animation loop (pause when section is off-screen) ---
+        let rafId = null;
+        let running = false;
+
+        function animate() {
+            rafId = requestAnimationFrame(animate);
+            uniforms.time.value += 0.05;
+            renderer.render(scene, camera);
+        }
+
+        // Use IntersectionObserver to save GPU when section is not visible
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting && !running) {
+                running = true;
+                animate();
+            } else if (!entry.isIntersecting && running) {
+                running = false;
+                cancelAnimationFrame(rafId);
+            }
+        }, { rootMargin: '200px' });
+
+        observer.observe(document.getElementById('shader-section'));
+    }
+})();
+
+// ════════════════════════════════════════════════════════
+//   WAVES BACKGROUND ANIMATION
+// ════════════════════════════════════════════════════════
+(function initWaves() {
+    const container = document.getElementById('waves-container');
+    const svg = document.getElementById('waves-svg');
+    if (!container || !svg || typeof SimplexNoise === 'undefined') return;
+
+    // Use global simplex (from the CDN script, it exposes window.simplexNoise)
+    // The library we loaded exposes window.simplexNoise
+    let noise2D;
+    // Check if it's the 2.x API (SimplexNoise constructor) or 3.x+ API (createNoise2D)
+    if (typeof SimplexNoise === 'function') {
+        const simplexInst = new SimplexNoise();
+        noise2D = (x, y) => simplexInst.noise2D(x, y);
+    } else {
+        // Fallback or generic
+        noise2D = (x, y) => Math.sin(x) * Math.cos(y); // Simple fallback, shouldn't happen with the CDN we used
+    }
+
+    let bounding = container.getBoundingClientRect();
+    let paths = [];
+    let lines = [];
+    let rafId = null;
+
+    const mouse = {
+        x: -10, y: 0, lx: 0, ly: 0, sx: 0, sy: 0,
+        v: 0, vs: 0, a: 0, set: false,
+    };
+
+    function setSize() {
+        bounding = container.getBoundingClientRect();
+        svg.style.width = bounding.width + 'px';
+        svg.style.height = bounding.height + 'px';
+    }
+
+    function setLines() {
+        const width = bounding.width;
+        const height = bounding.height;
+        lines = [];
+        paths.forEach(p => p.remove());
+        paths = [];
+
+        const xGap = 8;
+        const yGap = 8;
+        const oWidth = width + 200;
+        const oHeight = height + 30;
+
+        const totalLines = Math.ceil(oWidth / xGap);
+        const totalPoints = Math.ceil(oHeight / yGap);
+        const xStart = (width - xGap * totalLines) / 2;
+        const yStart = (height - yGap * totalPoints) / 2;
+
+        for (let i = 0; i < totalLines; i++) {
+            const points = [];
+            for (let j = 0; j < totalPoints; j++) {
+                points.push({
+                    x: xStart + xGap * i,
+                    y: yStart + yGap * j,
+                    wave: { x: 0, y: 0 },
+                    cursor: { x: 0, y: 0, vx: 0, vy: 0 }
+                });
+            }
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.classList.add('a__line', 'js-line');
+            path.setAttribute('fill', 'none');
+            // Hardcode bright white lines similar to the component props
+            path.setAttribute('stroke', 'rgba(255, 255, 255, 0.4)');
+            path.setAttribute('stroke-width', '1');
+
+            svg.appendChild(path);
+            paths.push(path);
+            lines.push(points);
+        }
+    }
+
+    function updateMousePosition(x, y) {
+        mouse.x = x - bounding.left;
+        mouse.y = y - bounding.top + window.scrollY;
+
+        if (!mouse.set) {
+            mouse.sx = mouse.x;
+            mouse.sy = mouse.y;
+            mouse.lx = mouse.x;
+            mouse.ly = mouse.y;
+            mouse.set = true;
+        }
+
+        container.style.setProperty('--x', `${mouse.sx}px`);
+        container.style.setProperty('--y', `${mouse.sy}px`);
+    }
+
+    function movePoints(time) {
+        lines.forEach(points => {
+            points.forEach(p => {
+                const move = noise2D((p.x + time * 0.008) * 0.003, (p.y + time * 0.003) * 0.002) * 8;
+                p.wave.x = Math.cos(move) * 12;
+                p.wave.y = Math.sin(move) * 6;
+
+                const dx = p.x - mouse.sx;
+                const dy = p.y - mouse.sy;
+                const d = Math.hypot(dx, dy);
+                const l = Math.max(175, mouse.vs);
+
+                if (d < l) {
+                    const s = 1 - d / l;
+                    const f = Math.cos(d * 0.001) * s;
+                    p.cursor.vx += Math.cos(mouse.a) * f * l * mouse.vs * 0.00035;
+                    p.cursor.vy += Math.sin(mouse.a) * f * l * mouse.vs * 0.00035;
+                }
+
+                p.cursor.vx += (0 - p.cursor.x) * 0.01;
+                p.cursor.vy += (0 - p.cursor.y) * 0.01;
+                p.cursor.vx *= 0.95;
+                p.cursor.vy *= 0.95;
+                p.cursor.x += p.cursor.vx;
+                p.cursor.y += p.cursor.vy;
+                p.cursor.x = Math.min(50, Math.max(-50, p.cursor.x));
+                p.cursor.y = Math.min(50, Math.max(-50, p.cursor.y));
+            });
+        });
+    }
+
+    function drawLines() {
+        lines.forEach((points, lIndex) => {
+            if (points.length < 2 || !paths[lIndex]) return;
+
+            const fp = points[0];
+            const fx = fp.x + fp.wave.x;
+            const fy = fp.y + fp.wave.y;
+            let d = `M ${fx} ${fy}`;
+
+            for (let i = 1; i < points.length; i++) {
+                const p = points[i];
+                const x = p.x + p.wave.x + p.cursor.x;
+                const y = p.y + p.wave.y + p.cursor.y;
+                d += `L ${x} ${y}`;
+            }
+            paths[lIndex].setAttribute('d', d);
+        });
+    }
+
+    function tick(time) {
+        mouse.sx += (mouse.x - mouse.sx) * 0.1;
+        mouse.sy += (mouse.y - mouse.sy) * 0.1;
+
+        const dx = mouse.x - mouse.lx;
+        const dy = mouse.y - mouse.ly;
+        const d = Math.hypot(dx, dy);
+
+        mouse.v = d;
+        mouse.vs += (d - mouse.vs) * 0.1;
+        mouse.vs = Math.min(100, mouse.vs);
+
+        mouse.lx = mouse.x;
+        mouse.ly = mouse.y;
+        mouse.a = Math.atan2(dy, dx);
+
+        container.style.setProperty('--x', `${mouse.sx}px`);
+        container.style.setProperty('--y', `${mouse.sy}px`);
+
+        movePoints(time);
+        drawLines();
+
+        rafId = requestAnimationFrame(tick);
+    }
+
+    // Init and listeners
+    setSize();
+    setLines();
+
+    window.addEventListener('resize', () => { setSize(); setLines(); });
+    window.addEventListener('mousemove', e => updateMousePosition(e.pageX, e.pageY));
+    container.addEventListener('touchmove', e => {
+        const t = e.touches[0];
+        updateMousePosition(t.clientX, t.clientY);
+    }, { passive: false });
+
+    rafId = requestAnimationFrame(tick);
+})();
